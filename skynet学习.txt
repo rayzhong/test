@@ -1,0 +1,60 @@
+skynet_start.c
+
+sky全局对象:
+struct group * _G
+static unsigned int HARBOR = 0;
+static struct handle_storage *H = NULL;
+static struct global_queue *Q = NULL;
+static struct modules * M = NULL;
+static struct timer * TI = NULL;
+static struct socket_server * SOCKET_SERVER = NULL;
+
+
+skynet启动初始化:
+skynet_group_init();
+skynet_harbor_init(config->harbor);
+skynet_handle_init(config->harbor);
+skynet_mq_init();
+skynet_module_init(config->module_path);
+skynet_timer_init();
+skynet_socket_init();
+
+skynet线程分配:
+create_thread(&pid[0], _monitor, m);
+create_thread(&pid[1], _timer, m);
+create_thread(&pid[2], _socket, m);
+
+for (i=0;i<thread;i++) {
+	create_thread(&pid[i+3], _worker, &wp[i]);
+}
+
+
+说明：
+1.M 按照名字模块管理，默认MAX_MODULE_TYPE最大32个
+skynet_module结构包含模块的三个默认导出方法
+xxx_create 创建对象实例
+xxx_init  对象实例初始化
+xxx_release 销毁对象
+
+2.H 通过handle管理ctx句柄，默认 HANDLE_MASK 0xffffff 高8位是harbor，即remoteid
+并且为每个handle分配mq, 默认DEFAULT_QUEUE_SIZE 1024个单元
+
+
+3.Q 将ctx获得的处理队列整体放入队列管理列表内，默认MAX_GLOBAL_MQ 0x10000个单元。T型列表管理每个服务的DEFAULT_QUEUE_SIZE队列
+
+4._monitor单独一个线程用来管理监视工作线程的消息处理是否卡住了，管理单元skynet_monitor和_worker线程数量一一对应。一旦检测到卡住，
+
+5.TI 用来记录一个类似scedule的等待触发队列
+
+6._timer 按照tick来推进TI中的触发，触发的sessionId关联了LUA中的回调函数
+
+7._worker 每次从Q中获取一个队列的一个消息处理，并且保证同一个服务队列中的消息是顺序处理的。消息处理调用服务注册的回调cb函数处理。
+
+8._socket 接收消息生成包，依据opaque=服务编号，投递给相关服务的消息队列中取。
+
+
+
+问题：
+1.opaque从消息报的哪里获得的？这个可能要GDB一下
+2.分发消息的时候multicaset_dispatch是做什么的？
+3.除非了上面的多播，forwarding又是怎么指定的？
