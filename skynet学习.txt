@@ -60,3 +60,7 @@ xxx_release 销毁对象
 1.opaque从消息报的哪里获得的？这个可能要GDB一下
 2.分发消息的时候multicaset_dispatch是做什么的？
 3.除非了上面的多播，forwarding又是怎么指定的？
+
+
+
+one1
