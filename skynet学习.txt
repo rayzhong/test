@@ -64,3 +64,4 @@ xxx_release 销毁对象
 
 
 one1
+new_one add
