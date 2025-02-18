@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中英文单词配对游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
+        }
+
+       .score-timer {
+            display: flex;
+            justify-content: space-around;
+            width: 300px;
+            margin-bottom: 20px;
+        }
+
+       .columns-container {
+            display: flex;
+            justify-content: space-around;
+            width: 80%;
+        }
+
+       .column {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-width: 200px;
+        }
+
+       .word {
+            cursor: pointer;
+            margin: 5px;
+            padding: 10px 20px;
+            border: 1px solid #eee;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+            text-align: center;
+        }
+
+       .selected {
+            background-color: #ddd;
+        }
+
+       .flash {
+            background-color: #ff0000;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="score-timer">
+        <div>分数: <span id="score">0</span></div>
+        <div>时间: <span id="timer">0</span> 秒</div>
+    </div>
+    <div class="columns-container">
+        <div class="column" id="englishColumn"></div>
+        <div class="column" id="chineseColumn"></div>
+    </div>
+    <!-- 失败音效 -->
+    <audio id="errorSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
+    <!-- 成功音效 -->
+    <audio id="successSound" src="https://www.soundjay.com/button/beep-01a.wav" preload="auto"></audio>
+    <button id="restartButton">重玩一次</button>
+
+    <script>
+        // 定义中英文单词对
+        const wordPairs = [
+            { english: 'dog', chinese: '狗' },
+            { english: 'cat', chinese: '猫' },
+            { english: 'chick', chinese: '鸡' },
+            { english: 'horse', chinese: '马' },
+            { english: 'monkey', chinese: '猴' },
+            { english: 'wolf', chinese: '狼' },
+            { english: 'rabbit', chinese: '兔子' },
+            { english: 'lion', chinese: '狮子' },
+            { english: 'tiger', chinese: '老虎' }
+        ];
+
+        // 打乱数组顺序的函数
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 让单词闪动的函数
+        function flashWords(word1, word2) {
+            const flashInterval = 500; // 闪动间隔，单位：毫秒
+            const flashCount = 2; // 闪动次数
+            let count = 0;
+
+            const intervalId = setInterval(() => {
+                if (count % 2 === 0) {
+                    word1.classList.add('flash');
+                    word2.classList.add('flash');
+                } else {
+                    word1.classList.remove('flash');
+                    word2.classList.remove('flash');
+                }
+                count++;
+                if (count >= flashCount * 2) {
+                    clearInterval(intervalId);
+                    word1.classList.remove('flash');
+                    word2.classList.remove('flash');
+                    word1.classList.remove('selected');
+                    word2.classList.remove('selected');
+                }
+            }, flashInterval);
+        }
+
+        // 初始化游戏
+        function initGame() {
+            const englishColumn = document.getElementById('englishColumn');
+            const chineseColumn = document.getElementById('chineseColumn');
+            const errorSound = document.getElementById('errorSound');
+            const successSound = document.getElementById('successSound');
+            const scoreElement = document.getElementById('score');
+            const timerElement = document.getElementById('timer');
+            const restartButton = document.getElementById('restartButton');
+
+            let score = 0;
+            let time = 0;
+            let timerInterval;
+
+            // 重置分数和计时器显示
+            scoreElement.textContent = score;
+            timerElement.textContent = time;
+
+            // 清空之前的单词
+            englishColumn.innerHTML = '';
+            chineseColumn.innerHTML = '';
+
+            // 启动计时器
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                time++;
+                timerElement.textContent = time;
+            }, 1000);
+
+            // 打乱单词顺序
+            const shuffledPairs = shuffleArray([...wordPairs]);
+
+            // 显示英文单词
+            shuffledPairs.forEach(pair => {
+                const englishDiv = document.createElement('div');
+                englishDiv.classList.add('word');
+                englishDiv.textContent = pair.english;
+                englishDiv.dataset.chinese = pair.chinese;
+                englishColumn.appendChild(englishDiv);
+            });
+
+            // 打乱中文翻译顺序
+            const chineseWords = shuffledPairs.map(pair => pair.chinese);
+            const shuffledChineseWords = shuffleArray(chineseWords);
+
+            // 显示中文翻译
+            shuffledChineseWords.forEach(chinese => {
+                const chineseDiv = document.createElement('div');
+                chineseDiv.classList.add('word');
+                chineseDiv.textContent = chinese;
+                chineseColumn.appendChild(chineseDiv);
+            });
+
+            // 为单词添加点击事件监听器
+            const allWords = document.querySelectorAll('.word');
+            let selectedWord = null;
+
+            allWords.forEach(word => {
+                word.addEventListener('click', () => {
+                    if (selectedWord === null) {
+                        // 第一次点击，选择一个单词
+                        selectedWord = word;
+                        word.classList.add('selected');
+                    } else {
+                        // 第二次点击，尝试配对
+                        if (
+                            (selectedWord.parentElement === englishColumn && word.parentElement === chineseColumn && selectedWord.dataset.chinese === word.textContent) ||
+                            (selectedWord.parentElement === chineseColumn && word.parentElement === englishColumn && selectedWord.textContent === word.dataset.chinese)
+                        ) {
+                            // 配对成功，移除两个单词，增加分数，播放成功音效
+                            selectedWord.remove();
+                            word.remove();
+                            score += 2;
+                            scoreElement.textContent = score;
+                            successSound.play();
+
+                            // 检查是否所有单词都配对完成
+                            if (document.querySelectorAll('.word').length === 0) {
+                                clearInterval(timerInterval);
+                                // 如果全部配对正确，分数为 10 分
+                                if (score === wordPairs.length * 2) {
+                                    score = 10;
+                                    scoreElement.textContent = score;
+                                }
+                            }
+                        } else {
+                            // 配对失败，播放提示音并让单词闪动
+                            errorSound.play();
+                            flashWords(selectedWord, word);
+                        }
+                        selectedWord = null;
+                    }
+                });
+            });
+
+            // 为重玩按钮添加点击事件监听器
+            restartButton.addEventListener('click', initGame);
+        }
+
+        // 开始游戏
+        initGame();
+    </script>
+</body>
+
+</html>
